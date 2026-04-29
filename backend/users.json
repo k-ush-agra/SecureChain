@@ -1,12 +1,14 @@
 [
   {
-    "patientId": "kush",
-    "password": "1234",
-    "accessCode": "78945"
+    "patientId": "P-11111",
+    "name": "Alice Smith",
+    "password": "pass123",
+    "accessCode": "1234"
   },
   {
-    "patientId": "p1",
-    "password": "1234",
-    "accessCode": "5555"
+    "patientId": "P-22222",
+    "name": "Bob Jones",
+    "password": "pass456",
+    "accessCode": null
   }
 ]

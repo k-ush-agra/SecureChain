@@ -9,14 +9,20 @@ function App() {
 
   // Patient Login State
   const [password, setPassword] = useState('');
-  const [patientId, setPatientId] = useState('');
+  const [loginId, setLoginId] = useState('');
+  const [regId, setRegId] = useState('');
+  const [targetId, setTargetId] = useState('');
   const [accessCode, setAccessCode] = useState('');
+  const [tempCode, setTempCode] = useState('');
+  const [name, setName] = useState(''); // New state for registration
 
   // Doctor Action State
   const [report, setReport] = useState('');
   const [records, setRecords] = useState([]);
   const [hash, setHash] = useState('');
   const [code, setCode] = useState('');
+  const [selectedRecordIndex, setSelectedRecordIndex] = useState('');
+  const [decryptedReport, setDecryptedReport] = useState('');
 
   // Toast System State
   const [toast, setToast] = useState(null);
@@ -30,11 +36,17 @@ function App() {
     setRole(null);
     setLoggedIn(false);
     setRecords([]);
-    setPatientId('');
+    setLoginId('');
+    setRegId('');
+    setTargetId('');
     setAccessCode('');
     setPassword('');
     setHash('');
     setCode('');
+    setSelectedRecordIndex('');
+    setTempCode('');
+    setDecryptedReport('');
+    setName('');
   };
 
   // API Call Wrapper
@@ -54,25 +66,29 @@ function App() {
     const res = await axios.post('http://localhost:3000/login', { 
       role: "patient", 
       password, 
-      patientId 
+      patientId: loginId 
     });
     setLoggedIn(true);
-    setPatientId(res.data.patientId);
+    setLoginId(res.data.patientId);
     setAccessCode(res.data.accessCode);
     loadMyReports(res.data.patientId); 
   }, "Logged in successfully!");
 
   const registerPatient = () => apiCall(async () => {
-    await axios.post('http://localhost:3000/register', { patientId, password });
-    setPatientId(''); setPassword('');
+    const res = await axios.post('http://localhost:3000/register', { name, password });
+    showToast(`Registered! Patient ID is: ${res.data.patientId}`, 'success');
+    setName(''); setPassword('');
+    loadPatients();
   }, "Patient registered successfully!");
 
   const setCodeFirstTime = () => apiCall(async () => {
-    await axios.post('http://localhost:3000/set-code', { patientId, accessCode });
+    await axios.post('http://localhost:3000/set-code', { patientId: loginId, accessCode: tempCode });
+    setAccessCode(tempCode);
+    setTempCode('');
   }, "Access code set successfully!");
 
   const addReport = () => apiCall(async () => {
-    await axios.post('http://localhost:3000/add', { patientId, report });
+    await axios.post('http://localhost:3000/add', { patientId: targetId, report });
     setReport('');
     loadPatients(); 
   }, "Medical report encrypted & uploaded!");
@@ -81,6 +97,9 @@ function App() {
     try {
       const res = await axios.get('http://localhost:3000/doctor-view');
       setRecords(res.data);
+      setSelectedRecordIndex(''); // Reset selection on reload
+      setHash('');
+      setDecryptedReport('');
     } catch (err) {
       showToast("Failed to load patients", "error");
     }
@@ -88,18 +107,19 @@ function App() {
 
   const accessReport = () => apiCall(async () => {
     const res = await axios.post('http://localhost:3000/doctor-access', { hash, accessCode: code });
-    showToast(`Decrypted Report: ${res.data.report}`, 'success');
-    setCode(''); // Clear code after use for security
+    setDecryptedReport(res.data.report);
+    setCode(''); 
   });
 
   const deleteReport = () => apiCall(async () => {
     await axios.post('http://localhost:3000/delete', { hash, accessCode: code });
     setHash('');
     setCode('');
+    setSelectedRecordIndex('');
     loadPatients(); 
   }, "Report deleted successfully!");
 
-  const loadMyReports = async (id = patientId) => {
+  const loadMyReports = async (id = loginId) => {
     try {
       const res = await axios.get(`http://localhost:3000/patient/${id}`);
       setRecords(res.data);
@@ -168,7 +188,7 @@ function App() {
         <Header />
         <div className="container">
           <h2 style={{ textAlign: 'center' }}>Patient Login</h2>
-          <input placeholder="Patient ID" value={patientId} onChange={e => setPatientId(e.target.value)} />
+          <input placeholder="Patient ID" value={loginId} onChange={e => setLoginId(e.target.value)} />
           <input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} />
           <button onClick={login} disabled={loading || !password}>
             {loading ? 'Authenticating...' : 'Secure Login'}
@@ -191,16 +211,22 @@ function App() {
           <div className="grid">
             <div className="card">
               <h3>1. Register Patient</h3>
-              <input placeholder="New Patient ID" value={patientId} onChange={e => setPatientId(e.target.value)} />
+              <input placeholder="Patient Full Name" value={name} onChange={e => setName(e.target.value)} />
               <input type="password" placeholder="Assign Password" value={password} onChange={e => setPassword(e.target.value)} />
-              <button onClick={registerPatient} disabled={loading || !patientId || !password}>Register Patient</button>
+              <button onClick={registerPatient} disabled={loading || !name || !password}>Register Patient</button>
+              <p style={{ fontSize: '0.8rem', color: '#888', marginTop: '10px' }}>* Patient ID will be auto-generated by the system.</p>
             </div>
 
             <div className="card">
               <h3>2. Add Medical Report</h3>
-              <input placeholder="Target Patient ID" value={patientId} onChange={e => setPatientId(e.target.value)} />
+              <select value={targetId} onChange={e => setTargetId(e.target.value)}>
+                <option value="" disabled>-- Select Patient --</option>
+                {Array.from(new Map(records.map(r => [r.patientId, r])).values()).map((p, i) => (
+                  <option key={i} value={p.patientId}>{p.name} (ID: {p.patientId})</option>
+                ))}
+              </select>
               <textarea placeholder="Type diagnosis or medical report here..." value={report} onChange={e => setReport(e.target.value)} />
-              <button onClick={addReport} disabled={loading || !patientId || !report}>Encrypt & Upload</button>
+              <button onClick={addReport} disabled={loading || !targetId || !report}>Encrypt & Upload</button>
             </div>
 
             <div className="card" style={{ gridColumn: 'span 2' }}>
@@ -212,6 +238,7 @@ function App() {
                 <ul>
                   {records.map((r, i) => (
                     <li key={i}>
+                      <span style={{ minWidth: '150px' }}>👤 <b>{r.name}</b></span>
                       <span><b>ID:</b> {r.patientId}</span>
                       <span className={`badge ${r.hash ? "success" : "warning"}`}>
                         {r.hash ? "Report Active" : "No Report"}
@@ -226,10 +253,18 @@ function App() {
               <h3>4. Decrypt / Delete Record</h3>
               <div style={{ display: 'flex', gap: '15px' }}>
                 
-                <select value={hash} onChange={e => setHash(e.target.value)}>
+                <select 
+                  value={selectedRecordIndex} 
+                  onChange={e => {
+                    const idx = e.target.value;
+                    setSelectedRecordIndex(idx);
+                    setHash(records[idx].hash);
+                    setDecryptedReport(''); // Clear previous report when switching
+                  }}
+                >
                   <option value="" disabled>-- Select a Patient Record --</option>
-                  {records.filter(r => r.hash).map((r, i) => (
-                    <option key={i} value={r.hash}>Patient ID: {r.patientId}</option>
+                  {records.map((r, i) => (
+                    r.hash && <option key={i} value={i}>{r.name} (ID: {r.patientId})</option>
                   ))}
                 </select>
 
@@ -239,6 +274,19 @@ function App() {
                 <button onClick={accessReport} disabled={loading || !hash || !code}>Decrypt & View</button>
                 <button className="logout-btn" onClick={deleteReport} disabled={loading || !hash || !code}>Delete Record</button>
               </div>
+              
+              {decryptedReport && (
+                <div className="decrypted-box" style={{ marginTop: '20px', padding: '15px', background: 'rgba(0, 198, 255, 0.1)', borderLeft: '4px solid #00c6ff', borderRadius: '4px' }}>
+                  <h4 style={{ margin: '0 0 10px 0', color: '#00c6ff' }}>🔓 Decrypted Content:</h4>
+                  <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{decryptedReport}</p>
+                  <button 
+                    onClick={() => setDecryptedReport('')} 
+                    style={{ width: 'auto', padding: '5px 10px', marginTop: '10px', background: 'transparent', border: '1px solid #444', fontSize: '0.8rem' }}
+                  >
+                    Close Report
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -253,8 +301,8 @@ function App() {
             <div className="card" style={{ marginBottom: '20px' }}>
               <h3>Set Your Security Pin</h3>
               <p style={{ fontSize: '0.9rem', color: '#aaa' }}>This code is required by your doctor to unlock your records.</p>
-              <input type="password" placeholder="Create Access Code" onChange={e => setAccessCode(e.target.value)} />
-              <button onClick={setCodeFirstTime} disabled={loading || !accessCode}>Lock in Code</button>
+              <input type="password" placeholder="Create Access Code" value={tempCode} onChange={e => setTempCode(e.target.value)} />
+              <button onClick={setCodeFirstTime} disabled={loading || !tempCode}>Lock in Code</button>
             </div>
           )}
 

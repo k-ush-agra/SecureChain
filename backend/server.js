@@ -17,22 +17,26 @@ if (!fs.existsSync(DB)) fs.writeFileSync(DB, JSON.stringify([]));
 if (!fs.existsSync(USERS_DB)) fs.writeFileSync(USERS_DB, JSON.stringify([]));
 
 
-// =========================
-// 🧾 REGISTER PATIENT (Doctor or Patient)
 app.post('/register', (req, res) => {
-    const { patientId, password } = req.body;
+    const { name, password } = req.body;
 
     let users = JSON.parse(fs.readFileSync(USERS_DB));
 
-    if (users.find(u => u.patientId === patientId)) {
-        return res.status(400).json({ message: "User exists" });
+    // Generate a unique patient ID (e.g., P-12345)
+    let patientId;
+    let isUnique = false;
+    while (!isUnique) {
+        patientId = "P-" + Math.floor(10000 + Math.random() * 90000);
+        if (!users.find(u => u.patientId === patientId)) {
+            isUnique = true;
+        }
     }
 
-    users.push({ patientId, password, accessCode: null });
+    users.push({ patientId, name, password, accessCode: null });
 
     fs.writeFileSync(USERS_DB, JSON.stringify(users, null, 2));
 
-    res.json({ message: "Registered" });
+    res.json({ message: "Registered successfully", patientId });
 });
 
 
@@ -89,15 +93,33 @@ app.post('/add', (req, res) => {
         return res.status(400).json({ message: "Patient not registered" });
     }
 
-    const encrypted = Buffer.from(report).toString('base64');
-    const hash = crypto.createHash('sha256').update(encrypted).digest('hex');
-
     let data = JSON.parse(fs.readFileSync(DB));
-    data.push({ patientId, encrypted, hash });
+    let existingRec = data.find(r => r.patientId === patientId);
 
-    fs.writeFileSync(DB, JSON.stringify(data, null, 2));
-
-    res.json({ hash });
+    let finalReport = report;
+    if (existingRec) {
+        // Append new diagnosis to existing report
+        const oldReport = Buffer.from(existingRec.encrypted, 'base64').toString('utf-8');
+        finalReport = `${oldReport}\n---\n${report}`;
+        
+        // Update the existing record
+        const encrypted = Buffer.from(finalReport).toString('base64');
+        const hash = crypto.createHash('sha256').update(patientId + encrypted + Date.now()).digest('hex');
+        
+        existingRec.encrypted = encrypted;
+        existingRec.hash = hash;
+        
+        fs.writeFileSync(DB, JSON.stringify(data, null, 2));
+        return res.json({ hash, message: "Report updated" });
+    } else {
+        // Create new record
+        const encrypted = Buffer.from(finalReport).toString('base64');
+        const hash = crypto.createHash('sha256').update(patientId + encrypted + Date.now()).digest('hex');
+        
+        data.push({ patientId, encrypted, hash });
+        fs.writeFileSync(DB, JSON.stringify(data, null, 2));
+        return res.json({ hash, message: "Report created" });
+    }
 });
 
 
@@ -107,12 +129,19 @@ app.get('/doctor-view', (req, res) => {
     const users = JSON.parse(fs.readFileSync(USERS_DB));
     const records = JSON.parse(fs.readFileSync(DB));
 
-    const result = users.map(u => {
-        const rec = records.find(r => r.patientId === u.patientId);
-        return {
-            patientId: u.patientId,
-            hash: rec ? rec.hash : null
-        };
+    // Combine all patient records. If a patient has multiple reports, show all.
+    // If a patient has no reports, show them once with hash: null.
+    const result = [];
+    
+    users.forEach(u => {
+        const patientRecords = records.filter(r => r.patientId === u.patientId);
+        if (patientRecords.length === 0) {
+            result.push({ patientId: u.patientId, name: u.name || "N/A", hash: null });
+        } else {
+            patientRecords.forEach(rec => {
+                result.push({ patientId: u.patientId, name: u.name || "N/A", hash: rec.hash });
+            });
+        }
     });
 
     res.json(result);
