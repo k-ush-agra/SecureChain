@@ -199,6 +199,20 @@ li {
 .toast.success { border-left: 5px solid #2ed573; }
 .toast.error { border-left: 5px solid #ff4757; }
 
+/* ===== FOOTER ===== */
+.footer {
+  text-align: center;
+  padding: 30px;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 0.9rem;
+  letter-spacing: 0.5px;
+}
+
+.footer b {
+  color: #00c6ff;
+  font-weight: 500;
+}
+
 /* ===== ANIMATIONS ===== */
 @keyframes fadeIn {
   from { opacity: 0; transform: scale(0.98);}

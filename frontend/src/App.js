@@ -162,6 +162,12 @@ function App() {
     )
   );
 
+  const Footer = () => (
+    <div className="footer">
+      Made with ❤️ by <b>Kushagra Vashishtha</b> and <b>Bimal Tirkey</b>
+    </div>
+  );
+
   // ===== SCREENS ===== //
   if (!role) {
     return (
@@ -178,6 +184,7 @@ function App() {
           </button>
         </div>
         <ToastComponent />
+        <Footer />
       </>
     );
   }
@@ -195,6 +202,7 @@ function App() {
           </button>
         </div>
         <ToastComponent />
+        <Footer />
       </>
     );
   }
@@ -327,6 +335,7 @@ function App() {
       )}
       
       <ToastComponent />
+      <Footer />
     </>
   );
 }
