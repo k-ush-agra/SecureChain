@@ -164,7 +164,7 @@ function App() {
 
   const Footer = () => (
     <div className="footer">
-      Made with ❤️ by <b>Kushagra Vashishtha</b> and <b>Bimal Tirkey</b>
+      Made with ❤️ by <b>Kushagra Vashistha</b> and <b>Bimal Tirkey</b>
     </div>
   );
 
