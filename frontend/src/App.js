@@ -62,8 +62,11 @@ function App() {
     }
   };
 
+  // API Base URL
+  const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3000';
+
   const login = () => apiCall(async () => {
-    const res = await axios.post('http://localhost:3000/login', { 
+    const res = await axios.post(`${API_BASE}/login`, { 
       role: "patient", 
       password, 
       patientId: loginId 
@@ -75,27 +78,27 @@ function App() {
   }, "Logged in successfully!");
 
   const registerPatient = () => apiCall(async () => {
-    const res = await axios.post('http://localhost:3000/register', { name, password });
+    const res = await axios.post(`${API_BASE}/register`, { name, password });
     showToast(`Registered! Patient ID is: ${res.data.patientId}`, 'success');
     setName(''); setPassword('');
     loadPatients();
   }, "Patient registered successfully!");
 
   const setCodeFirstTime = () => apiCall(async () => {
-    await axios.post('http://localhost:3000/set-code', { patientId: loginId, accessCode: tempCode });
+    await axios.post(`${API_BASE}/set-code`, { patientId: loginId, accessCode: tempCode });
     setAccessCode(tempCode);
     setTempCode('');
   }, "Access code set successfully!");
 
   const addReport = () => apiCall(async () => {
-    await axios.post('http://localhost:3000/add', { patientId: targetId, report });
+    await axios.post(`${API_BASE}/add`, { patientId: targetId, report });
     setReport('');
     loadPatients(); 
   }, "Medical report encrypted & uploaded!");
 
   const loadPatients = async () => {
     try {
-      const res = await axios.get('http://localhost:3000/doctor-view');
+      const res = await axios.get(`${API_BASE}/doctor-view`);
       setRecords(res.data);
       setSelectedRecordIndex(''); // Reset selection on reload
       setHash('');
@@ -106,13 +109,13 @@ function App() {
   };
 
   const accessReport = () => apiCall(async () => {
-    const res = await axios.post('http://localhost:3000/doctor-access', { hash, accessCode: code });
+    const res = await axios.post(`${API_BASE}/doctor-access`, { hash, accessCode: code });
     setDecryptedReport(res.data.report);
     setCode(''); 
   });
 
   const deleteReport = () => apiCall(async () => {
-    await axios.post('http://localhost:3000/delete', { hash, accessCode: code });
+    await axios.post(`${API_BASE}/delete`, { hash, accessCode: code });
     setHash('');
     setCode('');
     setSelectedRecordIndex('');
@@ -121,7 +124,7 @@ function App() {
 
   const loadMyReports = async (id = loginId) => {
     try {
-      const res = await axios.get(`http://localhost:3000/patient/${id}`);
+      const res = await axios.get(`${API_BASE}/patient/${id}`);
       setRecords(res.data);
     } catch (err) {
       showToast("Failed to load your reports", "error");
